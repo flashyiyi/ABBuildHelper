@@ -4,12 +4,12 @@ using System.Linq;
 using UnityEngine;
 using UnityEditor;
 
-public class AssetBoundleViewer : EditorWindow
+public class ABViewer : EditorWindow
 {
-    [MenuItem("Window/AssetBoundleViewer")]
+    [MenuItem("Window/ABBuildHelper/ABViewer")]
     static void Init()
     {
-        AssetBoundleViewer w = (AssetBoundleViewer)EditorWindow.GetWindow(typeof(AssetBoundleViewer), false, "AssetBoundleViewer", true);
+        ABViewer w = (ABViewer)EditorWindow.GetWindow(typeof(ABViewer), false, "ABViewer", true);
         w.Show();
     }
 

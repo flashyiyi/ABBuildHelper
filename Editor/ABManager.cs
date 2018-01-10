@@ -2,15 +2,14 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
-using BsDiff;
 using System.IO;
 
-public class RepeatAssetBundle : EditorWindow
+public class ABManager : EditorWindow
 {
-    [MenuItem("Window/Repeat AssetBundle")]
+    [MenuItem("Window/ABBuildHelper/ABManager")]
     static void Init()
     {
-        RepeatAssetBundle w = (RepeatAssetBundle)EditorWindow.GetWindow(typeof(RepeatAssetBundle), false, "RepeatAssetBundle", true);
+        ABManager w = (ABManager)EditorWindow.GetWindow(typeof(ABManager), false, "ABManager", true);
         w.Show();
     }
 
