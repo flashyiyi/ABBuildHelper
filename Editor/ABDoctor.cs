@@ -5,12 +5,12 @@ using UnityEditor;
 using System.IO;
 using System.Linq;
 
-public class ABManager : EditorWindow
+public class ABDoctor : EditorWindow
 {
-    [MenuItem("Window/AB BuildHelper/AB Manager")]
+    [MenuItem("Window/AB BuildHelper/AB Doctor")]
     static void Init()
     {
-        ABManager w = (ABManager)EditorWindow.GetWindow(typeof(ABManager), false, "AB Manager", true);
+        ABDoctor w = (ABDoctor)EditorWindow.GetWindow(typeof(ABDoctor), false, "AB Manager", true);
         w.Show();
     }
 
