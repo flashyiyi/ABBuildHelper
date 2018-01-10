@@ -10,7 +10,7 @@ public class ABDoctor : EditorWindow
     [MenuItem("Window/AB BuildHelper/AB Doctor")]
     static void Init()
     {
-        ABDoctor w = (ABDoctor)EditorWindow.GetWindow(typeof(ABDoctor), false, "AB Manager", true);
+        ABDoctor w = (ABDoctor)EditorWindow.GetWindow(typeof(ABDoctor), false, "AB Doctor", true);
         w.Show();
     }
 
