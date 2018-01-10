@@ -1,96 +1,139 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
 using UnityEngine;
 using UnityEditor;
 
 public class ABViewer : EditorWindow
 {
-    [MenuItem("Window/ABBuildHelper/ABViewer")]
+    [MenuItem("Assets/AB Viewer", false)]
+    [MenuItem("Window/AB BuildHelper/AB Viewer")]
     static void Init()
     {
-        ABViewer w = (ABViewer)EditorWindow.GetWindow(typeof(ABViewer), false, "ABViewer", true);
+        ABViewer w = (ABViewer)EditorWindow.GetWindow(typeof(ABViewer), false, "AB Viewer", true);
         w.Show();
     }
 
-    private void OnSelectionChange()
+    [MenuItem("Assets/AB Viewer", true)]
+    static bool IsAssetVaild()
     {
-        LoadAllAssetsFromPath(Selection.objects);
+        foreach (Object target in Selection.objects)
+        {
+            if (target is UnityEditor.DefaultAsset)
+                return true;
+        }
+        return false;
     }
 
     public class Entiy
     {
-        public string path;
+        public AssetBundle ab;
         public string[] abDepends;
         public Object[] assets;
+        public Object[] depends;
     }
-    
+
     public List<Entiy> enties;
 
     Vector2 scrollPosition;
     bool showDependencies;
-    
-    public void LoadAllAssetsFromPath(Object[] targets)
-    {
-        foreach (Object target in targets)
-        {
-            string path = AssetDatabase.GetAssetPath(target);
 
-            Object obj = AssetDatabase.LoadMainAssetAtPath(path);
-            if (!(obj is UnityEditor.DefaultAsset))
-                return;
-        }
-        
-        AssetBundle.UnloadAllAssetBundles(false);
-        
+    private void OnEnable()
+    {
+        LoadAssetBoundles();
+    }
+
+    private void OnDisable()
+    {
+        UnloadAssetBoundles();
+    }
+
+    private void OnSelectionChange()
+    {
+        if (IsAssetVaild())
+            LoadAssetBoundles();
+    }
+    
+    public void LoadAssetBoundles()
+    {
+        UnloadAssetBoundles();
 
         enties = new List<Entiy>();
-        foreach (Object target in targets)
+        foreach (Object target in Selection.objects)
         {
-            string path = AssetDatabase.GetAssetPath(target);
-
-            AssetBundle ab = AssetBundle.LoadFromFile(path);
-            if (ab == null)
-                break;
-
-            enties.Add(new Entiy()
+            if (target is DefaultAsset)
             {
-                path = ab.name,
-                abDepends = AssetDatabase.GetAssetBundleDependencies(ab.name, false),
-                assets = EditorUtility.CollectDependencies(ab.LoadAllAssets()).OrderBy(x => x.name).ToArray()
-            });
+                string path = AssetDatabase.GetAssetPath(target);
+                AssetBundle ab = AssetBundle.LoadFromFile(path);
+                if (ab == null)
+                    break;
+
+                Object[] assets = ab.LoadAllAssets().OrderBy(x => x.GetType().Name).ThenBy(x => x.name).ToArray();
+                Object[] depends = EditorUtility.CollectDependencies(assets).Except(assets).OrderBy(x => x.GetType().Name).ThenBy(x => x.name).ToArray();
+                enties.Add(new Entiy()
+                {
+                    ab = ab,
+                    abDepends = AssetDatabase.GetAssetBundleDependencies(ab.name, false),
+                    assets = assets,
+                    depends = depends
+                });
+            }
         }
 
         this.Repaint();
     }
 
-    private void OnGUI()
+    public void UnloadAssetBoundles()
     {
         if (enties == null)
             return;
 
-        showDependencies = EditorGUILayout.Toggle("Show Dependency Assets", showDependencies);
+        foreach (Entiy entiy in enties)
+        {
+            if (entiy.ab != null)
+                entiy.ab.Unload(false);
+        }
+        enties = null;
+    }
 
+    private void OnGUI()
+    {
+        EditorGUILayout.BeginHorizontal();
+        showDependencies = EditorGUILayout.ToggleLeft("Show Relevance", showDependencies);
+        if (GUILayout.Button("Unload All AB"))
+        {
+                AssetBundle.UnloadAllAssetBundles(false);
+                LoadAssetBoundles();
+        }
+        EditorGUILayout.EndHorizontal();
+        if (enties == null || enties.Count == 0)
+        {
+            EditorGUILayout.LabelField("Select a AssetBoundle File", GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
+            return;
+        }
         scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
         foreach (Entiy entiy in enties)
         {
-            EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField(entiy.path);
+            EditorGUILayout.BeginHorizontal(GUI.skin.button);
+            EditorGUILayout.LabelField(entiy.ab.name);
             if (entiy.abDepends != null && entiy.abDepends.Length > 0)
             {
-                EditorGUILayout.LabelField("Dependency AB: " + string.Join(",", entiy.abDepends));
+                EditorGUILayout.LabelField("Dependency: " + string.Join(",", entiy.abDepends));
             }
             EditorGUILayout.EndHorizontal();
 
+            GUI.color = Color.white;
             if (entiy.assets != null)
             {
                 foreach (Object asset in entiy.assets)
                 {
-                    EditorGUILayout.ObjectField(asset, typeof(Object), true);
+                    //EditorGUILayout.Foldout(true,EditorGUIUtility.ObjectContent(asset, typeof(Object)));
+                    EditorGUILayout.ObjectField(asset, typeof(Object), false);
                     DragLastUI(asset);
                     if (showDependencies)
                     {
-                        Object[] dependencies = EditorUtility.CollectDependencies(new Object[] { asset });
+                        Object[] dependencies = EditorUtility.CollectDependencies(new Object[] { asset }).OrderBy(x => x.GetType().Name).ThenBy(x => x.name).ToArray();
                         EditorGUI.indentLevel++;
                         foreach (Object obj in dependencies)
                         {
@@ -104,6 +147,20 @@ public class ABViewer : EditorWindow
                     }
                 }
             }
+            if (!showDependencies)
+            {
+                GUI.color = Color.grey;
+                if (entiy.depends != null)
+                {
+                    foreach (Object asset in entiy.depends)
+                    {
+                        EditorGUILayout.ObjectField(asset, typeof(Object), false);
+                        DragLastUI(asset);
+                    }
+                }
+                GUI.color = Color.white;
+            }
+            
         }
         
         EditorGUILayout.EndScrollView();

@@ -3,13 +3,14 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
 using System.IO;
+using System.Linq;
 
 public class ABManager : EditorWindow
 {
-    [MenuItem("Window/ABBuildHelper/ABManager")]
+    [MenuItem("Window/AB BuildHelper/AB Manager")]
     static void Init()
     {
-        ABManager w = (ABManager)EditorWindow.GetWindow(typeof(ABManager), false, "ABManager", true);
+        ABManager w = (ABManager)EditorWindow.GetWindow(typeof(ABManager), false, "AB Manager", true);
         w.Show();
     }
 
@@ -113,7 +114,7 @@ public class ABManager : EditorWindow
                 }
             }
         }
-        repeatData.objects = new List<Object>(result);
+        repeatData.objects = result.OrderBy(x => x.GetType().Name).ThenBy(x => x.name).ToList();
     }
 
     private void OnEnable()
@@ -183,8 +184,8 @@ public class ABManager : EditorWindow
     private void ShowAssets(string abName)
     {
         HashSet<Object> abValues = abAssetDict[abName];
-        EditorGUI.indentLevel++;
-        foreach (var asset in abValues)
+        EditorGUI.indentLevel++; 
+        foreach (var asset in abValues.OrderBy(x => x.GetType().Name).ThenBy(x => x.name))
         {
             ShowAsset(asset);
         }
@@ -204,7 +205,7 @@ public class ABManager : EditorWindow
         
         if (string.IsNullOrEmpty(path))
         {
-            GUI.color = Color.red;
+            GUI.color = Color.blue;
         }
         else if (path.StartsWith("Resources/unity_builtin_extra") || path == "Library/unity default resources")
         {
@@ -219,6 +220,21 @@ public class ABManager : EditorWindow
         }
 
         EditorGUILayout.ObjectField(asset, typeof(Object), true);
+
+        if (Event.current.type == EventType.MouseUp && GUILayoutUtility.GetLastRect().Contains(Event.current.mousePosition))
+        {
+            if (GUI.color == Color.yellow)
+            {
+                if (EditorUtility.DisplayDialog("", "内置资源无法依赖打包，是否要现在解决这个问题？", "确认","取消"))
+                {
+                    Debug.Log("开发中");
+                }
+            }
+            else if (GUI.color == Color.yellow)
+            {
+                EditorUtility.DisplayDialog("", "这是图集纹理，将相关的Sprite打入一个包即可避免重复", "确认");
+            }
+        }
         GUI.color = oldColor;
     }
 }
