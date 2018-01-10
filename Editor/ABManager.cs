@@ -230,9 +230,9 @@ public class ABManager : EditorWindow
                     Debug.Log("开发中");
                 }
             }
-            else if (GUI.color == Color.yellow)
+            else if (GUI.color == Color.blue)
             {
-                EditorUtility.DisplayDialog("", "这是图集纹理，将相关的Sprite打入一个包即可避免重复", "确认");
+                EditorUtility.DisplayDialog("", "这是图集纹理，将相关的Sprite打入同一个包即可避免重复", "确认");
             }
         }
         GUI.color = oldColor;
