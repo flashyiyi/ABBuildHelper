@@ -149,7 +149,7 @@ public class ABViewer : EditorWindow
             }
             if (!showDependencies)
             {
-                GUI.color = Color.grey;
+                GUI.color = new Color(0.7f, 0.7f, 0.7f, 1f);
                 if (entiy.depends != null)
                 {
                     foreach (Object asset in entiy.depends)

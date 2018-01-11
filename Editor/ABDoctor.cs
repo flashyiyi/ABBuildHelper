@@ -217,7 +217,7 @@ public class ABDoctor : EditorWindow
         else if (!AssetDatabase.IsMainAsset(asset))
         {
             if (showSubAsset)
-                GUI.color = Color.grey;
+                GUI.color = new Color(0.7f,0.7f,0.7f,1f);
             else
                 return;
         }
