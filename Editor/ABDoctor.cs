@@ -69,6 +69,9 @@ public class ABDoctor : EditorWindow
         {
             foreach (Object obj in pair.Value)
             {
+                if (obj is MonoScript)
+                    continue;
+
                 RepeatData repeatData = new RepeatData();
                 repeatData.abName = pair.Key;
                 if (!repeatCount.ContainsKey(obj))
@@ -135,7 +138,7 @@ public class ABDoctor : EditorWindow
         EditorGUILayout.EndHorizontal();
 
         scrollPosition = GUILayout.BeginScrollView(scrollPosition);
-        EditorGUILayout.LabelField("Repeat Assets:");
+        EditorGUILayout.LabelField("重复打包的资源：");
         EditorGUI.indentLevel++;
         foreach (var pair in repeatCount)
         {
@@ -165,7 +168,7 @@ public class ABDoctor : EditorWindow
             }
         }
         EditorGUI.indentLevel--;
-        EditorGUILayout.LabelField("AssetBundles:");
+        EditorGUILayout.LabelField("AssetBundles列表：");
         EditorGUI.indentLevel++;
         foreach (var pair in abAssetDict)
         {
