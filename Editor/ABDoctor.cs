@@ -32,7 +32,10 @@ public class ABDoctor : EditorWindow
         public List<Object> objects;
         public bool opened;
     }
-    Dictionary<Object, List<RepeatData>> repeatCount;
+    Dictionary<Object, List<RepeatData>> assetDenpendGroups;
+    Dictionary<Object, List<RepeatData>> repeatAssets;
+    Dictionary<Object, List<RepeatData>> buildInAssets;
+
     bool showSubAsset = true;
     private void CollectRepeatAssets()
     {
@@ -64,7 +67,7 @@ public class ABDoctor : EditorWindow
             }
         }
         //统计
-        repeatCount = new Dictionary<Object, List<RepeatData>>();
+        assetDenpendGroups = new Dictionary<Object, List<RepeatData>>();
         foreach (var pair in abAssetDict)
         {
             foreach (Object obj in pair.Value)
@@ -74,14 +77,28 @@ public class ABDoctor : EditorWindow
 
                 RepeatData repeatData = new RepeatData();
                 repeatData.abName = pair.Key;
-                if (!repeatCount.ContainsKey(obj))
+                if (!assetDenpendGroups.ContainsKey(obj))
                 {
-                    repeatCount.Add(obj, new List<RepeatData>() { repeatData });
+                    assetDenpendGroups.Add(obj, new List<RepeatData>() { repeatData });
                 }
                 else
                 {
-                    repeatCount[obj].Add(repeatData);
+                    assetDenpendGroups[obj].Add(repeatData);
                 }
+            }
+        }
+
+        repeatAssets = new Dictionary<Object, List<RepeatData>>();
+        buildInAssets = new Dictionary<Object, List<RepeatData>>();
+        foreach (var pair in assetDenpendGroups)
+        {
+            if (pair.Value.Count > 1)
+            {
+                repeatAssets.Add(pair.Key, pair.Value);
+            }
+            if (IsBuildIn(AssetDatabase.GetAssetPath(pair.Key)))
+            {
+                buildInAssets.Add(pair.Key, pair.Value);
             }
         }
     }
@@ -129,51 +146,52 @@ public class ABDoctor : EditorWindow
     Dictionary<string, bool> toggleGroupData = new Dictionary<string, bool>();
     private void OnGUI()
     {
-        EditorGUILayout.BeginHorizontal();
         if (GUILayout.Button("Refresh"))
         {
             CollectRepeatAssets();
         }
-        showSubAsset = GUILayout.Toggle(showSubAsset, "Show Sub Asset");
-        EditorGUILayout.EndHorizontal();
 
         scrollPosition = GUILayout.BeginScrollView(scrollPosition);
-        EditorGUILayout.LabelField("重复打包的资源：");
-        EditorGUI.indentLevel++;
-        foreach (var pair in repeatCount)
+        if (repeatAssets.Count > 0)
         {
-            if (pair.Value.Count > 1)
+            EditorGUILayout.LabelField("重复打包的资源：");
+            EditorGUI.indentLevel++;
+            foreach (var pair in repeatAssets)
             {
                 ShowAsset(pair.Key);
-                EditorGUI.indentLevel++;
-                foreach (RepeatData repeatData in pair.Value)
-                {
-                    repeatData.opened = EditorGUILayout.Foldout(repeatData.opened,repeatData.abName);
-                    if (repeatData.opened)
-                    {
-                        if (repeatData.objects == null)
-                        {
-                            CollectRepeatDependencies(repeatData, pair.Key);
-                        }
-
-                        EditorGUI.indentLevel++;
-                        foreach (Object obj in repeatData.objects)
-                        {
-                            ShowAsset(obj);
-                        }
-                        EditorGUI.indentLevel--;
-                    }
-                }
-                EditorGUI.indentLevel--;
+                ShowDependencies(pair.Value, pair.Key);
             }
+            EditorGUI.indentLevel--;
         }
-        EditorGUI.indentLevel--;
-        EditorGUILayout.LabelField("AssetBundles列表：");
+
+        if (buildInAssets.Count > 0)
+        {
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("Unity内置资源：");
+            if (GUILayout.Button("替换为用户资源"))
+            {
+                FixBuildInAssets();
+            }
+            EditorGUILayout.EndHorizontal();
+            EditorGUI.indentLevel++;
+            foreach (var pair in buildInAssets)
+            {
+                ShowAsset(pair.Key);
+                ShowDependencies(pair.Value, pair.Key);
+            }
+            EditorGUI.indentLevel--;
+        }
+
+        EditorGUILayout.BeginHorizontal();
+        EditorGUILayout.LabelField("AssetBundles内容：");
+        showSubAsset = GUILayout.Toggle(showSubAsset, "Show Sub Asset");
+        EditorGUILayout.EndHorizontal();
         EditorGUI.indentLevel++;
         foreach (var pair in abAssetDict)
         {
             if (!toggleGroupData.ContainsKey(pair.Key))
                 toggleGroupData.Add(pair.Key, false);
+
             toggleGroupData[pair.Key] = EditorGUILayout.Foldout(toggleGroupData[pair.Key], pair.Key);
             if (toggleGroupData[pair.Key])
             {
@@ -184,13 +202,37 @@ public class ABDoctor : EditorWindow
         GUILayout.EndScrollView();
     }
 
+    private void ShowDependencies(List<RepeatData> boundles, Object target)
+    {
+        EditorGUI.indentLevel++;
+        foreach (RepeatData repeatData in boundles)
+        {
+            repeatData.opened = EditorGUILayout.Foldout(repeatData.opened, repeatData.abName);
+            if (repeatData.opened)
+            {
+                if (repeatData.objects == null)
+                {
+                    CollectRepeatDependencies(repeatData, target);
+                }
+
+                EditorGUI.indentLevel++;
+                foreach (Object obj in repeatData.objects)
+                {
+                    ShowAsset(obj);
+                }
+                EditorGUI.indentLevel--;
+            }
+        }
+        EditorGUI.indentLevel--;
+    }
+
     private void ShowAssets(string abName)
     {
         HashSet<Object> abValues = abAssetDict[abName];
         EditorGUI.indentLevel++; 
         foreach (var asset in abValues.OrderBy(x => x.GetType().Name).ThenBy(x => x.name))
         {
-            ShowAsset(asset);
+            ShowAsset(asset, showSubAsset);
         }
         string[] dependAbs = AssetDatabase.GetAssetBundleDependencies(abName, false);
         foreach (string depend in dependAbs)
@@ -201,7 +243,7 @@ public class ABDoctor : EditorWindow
         EditorGUI.indentLevel--;
     }
 
-    private void ShowAsset(Object asset)
+    private void ShowAsset(Object asset, bool showSubAsset = true)
     {
         Color oldColor = GUI.color;
         string path = AssetDatabase.GetAssetPath(asset);
@@ -210,7 +252,7 @@ public class ABDoctor : EditorWindow
         {
             GUI.color = Color.blue;
         }
-        else if (path.StartsWith("Resources/unity_builtin_extra") || path == "Library/unity default resources")
+        else if (IsBuildIn(path))
         {
             GUI.color = Color.yellow;
         }
@@ -223,21 +265,80 @@ public class ABDoctor : EditorWindow
         }
 
         EditorGUILayout.ObjectField(asset, typeof(Object), true);
+        GUI.color = oldColor;
+    }
 
-        if (Event.current.type == EventType.MouseUp && GUILayoutUtility.GetLastRect().Contains(Event.current.mousePosition))
+    private static bool IsBuildIn(string path)
+    {
+        return path.StartsWith("Resources/unity_builtin_extra") || path == "Library/unity default resources";
+    }
+
+    private void FixBuildInAssets()
+    {
+        bool fixAll = true;
+        foreach (var pair in assetDenpendGroups)
         {
-            if (GUI.color == Color.yellow)
+            Object asset = pair.Key;
+            if (IsBuildIn(AssetDatabase.GetAssetPath(asset)))
             {
-                if (EditorUtility.DisplayDialog("", "内置资源无法依赖打包，是否要现在解决这个问题？", "确认","取消"))
+                Object repeatObject = null;
+                if (asset is Shader)
                 {
-                    Debug.Log("开发中");
+                    repeatObject = Shader.Find(asset.name);
+                }
+                else
+                {
+                    string[] assetPaths = AssetDatabase.FindAssets(asset.name + " t:" + asset.GetType().Name.ToLower());
+                    if (assetPaths.Length > 0)
+                    {
+                        repeatObject = AssetDatabase.LoadAssetAtPath(AssetDatabase.GUIDToAssetPath(assetPaths[0]), asset.GetType());
+                    }
+                }
+                if (repeatObject != null)
+                {
+                    foreach (RepeatData repeatData in pair.Value)
+                    {
+                        CollectRepeatDependencies(repeatData, asset);
+                        foreach (Object obj in repeatData.objects)
+                        {
+                            if (IsBuildIn(AssetDatabase.GetAssetPath(obj)))
+                                continue;
+                            
+                            if (repeatObject is Shader)
+                            {
+                                if (obj is Material)
+                                    (obj as Material).shader = repeatObject as Shader;
+                            }
+                            else if (repeatObject is Mesh)
+                            {
+                                if (obj is MeshFilter)
+                                    (obj as MeshFilter).sharedMesh = repeatObject as Mesh;
+                            }
+                            else if (repeatObject is Material)
+                            {
+                                if (obj is Renderer)
+                                    (obj as Renderer).sharedMaterial = repeatObject as Material;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    fixAll = false;
                 }
             }
-            else if (GUI.color == Color.blue)
-            {
-                EditorUtility.DisplayDialog("", "这是图集纹理，将相关的Sprite打入同一个包即可避免重复", "确认");
-            }
         }
-        GUI.color = oldColor;
+
+        CollectRepeatAssets();
+        if (!fixAll)
+        {
+            EditorApplication.delayCall = () =>
+            {
+                if (EditorUtility.DisplayDialog("", "需要先到Unity官网下载内建文件（在点击下载后的下拉框中）并复制到工程目录，\n是否跳转到下载网站？", "确定", "取消"))
+                {
+                    Application.OpenURL("https://unity3d.com/cn/get-unity/download/archive");
+                }
+            };
+        }
     }
 }
