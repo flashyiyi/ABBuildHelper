@@ -8,7 +8,7 @@ using UnityEditor;
 public class ABViewer : EditorWindow
 {
     [MenuItem("Assets/AB Viewer", false)]
-    [MenuItem("Window/AB BuildHelper/AB Viewer")]
+    [MenuItem("Window/AB BuildHelper/AB Viewer",false,1)]
     static void Init()
     {
         ABViewer w = (ABViewer)EditorWindow.GetWindow(typeof(ABViewer), false, "AB Viewer", true);

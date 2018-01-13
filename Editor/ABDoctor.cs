@@ -7,7 +7,7 @@ using System.Linq;
 
 public class ABDoctor : EditorWindow
 {
-    [MenuItem("Window/AB BuildHelper/AB Doctor")]
+    [MenuItem("Window/AB BuildHelper/AB Doctor",false,0)]
     static void Init()
     {
         ABDoctor w = (ABDoctor)EditorWindow.GetWindow(typeof(ABDoctor), false, "AB Doctor", true);
@@ -37,7 +37,7 @@ public class ABDoctor : EditorWindow
     Dictionary<Object, List<RepeatData>> buildInAssets;
 
     bool showSubAsset = true;
-    private void CollectRepeatAssets()
+    private void CollectAssets()
     {
         Dictionary<string, HashSet<Object>> abAssetDict = new Dictionary<string, HashSet<Object>>();
 
@@ -149,7 +149,7 @@ public class ABDoctor : EditorWindow
 
     private void OnEnable()
     {
-        CollectRepeatAssets();
+        CollectAssets();
     }
 
     Vector2 scrollPosition;
@@ -158,7 +158,7 @@ public class ABDoctor : EditorWindow
     {
         if (GUILayout.Button("Refresh"))
         {
-            CollectRepeatAssets();
+            CollectAssets();
         }
 
         scrollPosition = GUILayout.BeginScrollView(scrollPosition);
@@ -302,18 +302,17 @@ public class ABDoctor : EditorWindow
     {
         if (Event.current.type == EventType.DragPerform && GUILayoutUtility.GetLastRect().Contains(Event.current.mousePosition))
         {
-            DragAndDrop.AcceptDrag();
             foreach (Object obj in DragAndDrop.objectReferences)
             {
                 AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(obj)).assetBundleName = adName;
             }
             Event.current.Use();
-            CollectRepeatAssets();
+            CollectAssets();
         }
         else if (Event.current.type == EventType.DragUpdated && GUILayoutUtility.GetLastRect().Contains(Event.current.mousePosition))
         {
             DragAndDrop.visualMode = DragAndDropVisualMode.Move;
-            Event.current.Use();
+            DragAndDrop.AcceptDrag();
         }
     }
 
@@ -373,7 +372,7 @@ public class ABDoctor : EditorWindow
             }
         }
 
-        CollectRepeatAssets();
+        CollectAssets();
         if (!fixAll)
         {
             EditorApplication.delayCall = () =>
