@@ -64,7 +64,7 @@ public class ABFindUnpack : EditorWindow
             SetFolder(DragAndDrop.paths[0]);
             Event.current.Use();
         }
-        if (GUILayout.Button("Select"))
+        if (GUILayout.Button("Select Root Path"))
         {
             string result = EditorUtility.OpenFolderPanel("", "选择目录", "");
             if (result != null)
