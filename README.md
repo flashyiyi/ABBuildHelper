@@ -9,5 +9,6 @@
 - 界面优化
 
 
-类似的官方工具：
-https://github.com/Unity-Technologies/AssetBundles-Browser
+对官方工具的补充：
+<https://github.com/Unity-Technologies/AssetBundles-Browser><br>
+所以重复的功能并没有认真做，手动分包还是用官方这个。但官方工具判重忽略了图集文件和BuildIn资源。
