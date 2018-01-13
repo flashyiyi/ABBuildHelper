@@ -7,3 +7,7 @@
 - 自动设置AB Name并打包
 - 检查遗漏未打包资源
 - 界面优化
+
+
+类似的官方工具：
+https://github.com/Unity-Technologies/AssetBundles-Browser
