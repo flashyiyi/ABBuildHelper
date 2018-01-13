@@ -205,6 +205,7 @@ public class ABDoctor : EditorWindow
                 toggleGroupData.Add(pair.Key, false);
 
             toggleGroupData[pair.Key] = EditorGUILayout.Foldout(toggleGroupData[pair.Key], pair.Key);
+            CheckDragToAssetBoundles(pair.Key);
             if (toggleGroupData[pair.Key])
             {
                 ShowAssets(pair.Key);
@@ -295,6 +296,25 @@ public class ABDoctor : EditorWindow
     private static bool IsBuildIn(string path)
     {
         return path.StartsWith("Resources/unity_builtin_extra") || path == "Library/unity default resources";
+    }
+
+    private void CheckDragToAssetBoundles(string adName)
+    {
+        if (Event.current.type == EventType.DragPerform && GUILayoutUtility.GetLastRect().Contains(Event.current.mousePosition))
+        {
+            DragAndDrop.AcceptDrag();
+            foreach (Object obj in DragAndDrop.objectReferences)
+            {
+                AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(obj)).assetBundleName = adName;
+            }
+            Event.current.Use();
+            CollectRepeatAssets();
+        }
+        else if (Event.current.type == EventType.DragUpdated && GUILayoutUtility.GetLastRect().Contains(Event.current.mousePosition))
+        {
+            DragAndDrop.visualMode = DragAndDropVisualMode.Move;
+            Event.current.Use();
+        }
     }
 
     private void FixBuildInAssets()
