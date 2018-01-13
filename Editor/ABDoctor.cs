@@ -25,13 +25,13 @@ public class ABDoctor : EditorWindow
         return paths;
     }
 
-    Dictionary<string, HashSet<Object>> abAssetDict;
     class RepeatData
     {
         public string abName;
         public List<Object> objects;
         public bool opened;
     }
+    Dictionary<string, List<Object>> abAssets;
     Dictionary<Object, List<RepeatData>> assetDenpendGroups;
     Dictionary<Object, List<RepeatData>> repeatAssets;
     Dictionary<Object, List<RepeatData>> buildInAssets;
@@ -39,7 +39,7 @@ public class ABDoctor : EditorWindow
     bool showSubAsset = true;
     private void CollectRepeatAssets()
     {
-        abAssetDict = new Dictionary<string, HashSet<Object>>();
+        Dictionary<string, HashSet<Object>> abAssetDict = new Dictionary<string, HashSet<Object>>();
 
         //获得ab依赖的所有资源
         string[] abNames = AssetDatabase.GetAllAssetBundleNames();
@@ -66,6 +66,16 @@ public class ABDoctor : EditorWindow
                 }
             }
         }
+        //排序
+        abAssets = new Dictionary<string, List<Object>>();
+        foreach (var pair in abAssetDict)
+        {
+            List<Object> list = pair.Value
+                .OrderBy(x => AssetDatabase.GetAssetPath(x))
+                .ThenByDescending(x => AssetDatabase.IsMainAsset(x))
+                .ToList();
+            abAssets.Add(pair.Key, list);
+        }
         //统计
         assetDenpendGroups = new Dictionary<Object, List<RepeatData>>();
         foreach (var pair in abAssetDict)
@@ -87,7 +97,7 @@ public class ABDoctor : EditorWindow
                 }
             }
         }
-
+        //分类
         repeatAssets = new Dictionary<Object, List<RepeatData>>();
         buildInAssets = new Dictionary<Object, List<RepeatData>>();
         foreach (var pair in assetDenpendGroups)
@@ -107,7 +117,7 @@ public class ABDoctor : EditorWindow
     {
         Dictionary<Object, Object[]> repeatDataDepends = new Dictionary<Object, Object[]>();
         HashSet<Object> result = new HashSet<Object>();
-        foreach (Object obj in abAssetDict[repeatData.abName])
+        foreach (Object obj in abAssets[repeatData.abName])
         {
             if (obj == target)
                 continue;
@@ -134,7 +144,7 @@ public class ABDoctor : EditorWindow
                 }
             }
         }
-        repeatData.objects = result.OrderBy(x => x.GetType().Name).ThenBy(x => x.name).ToList();
+        repeatData.objects = result.ToList();
     }
 
     private void OnEnable()
@@ -154,7 +164,9 @@ public class ABDoctor : EditorWindow
         scrollPosition = GUILayout.BeginScrollView(scrollPosition);
         if (repeatAssets.Count > 0)
         {
+            EditorGUILayout.BeginHorizontal(GUI.skin.button);
             EditorGUILayout.LabelField("重复打包的资源：");
+            EditorGUILayout.EndHorizontal();
             EditorGUI.indentLevel++;
             foreach (var pair in repeatAssets)
             {
@@ -166,8 +178,8 @@ public class ABDoctor : EditorWindow
 
         if (buildInAssets.Count > 0)
         {
-            EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("Unity内置资源：");
+            EditorGUILayout.BeginHorizontal(GUI.skin.button);
+            EditorGUILayout.LabelField("不能依赖打包的内置资源：");
             if (GUILayout.Button("替换为用户资源"))
             {
                 FixBuildInAssets();
@@ -182,12 +194,12 @@ public class ABDoctor : EditorWindow
             EditorGUI.indentLevel--;
         }
 
-        EditorGUILayout.BeginHorizontal();
+        EditorGUILayout.BeginHorizontal(GUI.skin.button);
         EditorGUILayout.LabelField("AssetBundles内容：");
         showSubAsset = GUILayout.Toggle(showSubAsset, "Show Sub Asset");
         EditorGUILayout.EndHorizontal();
         EditorGUI.indentLevel++;
-        foreach (var pair in abAssetDict)
+        foreach (var pair in abAssets)
         {
             if (!toggleGroupData.ContainsKey(pair.Key))
                 toggleGroupData.Add(pair.Key, false);
@@ -228,11 +240,11 @@ public class ABDoctor : EditorWindow
 
     private void ShowAssets(string abName)
     {
-        HashSet<Object> abValues = abAssetDict[abName];
+        var abValues = abAssets[abName];
         EditorGUI.indentLevel++; 
-        foreach (var asset in abValues.OrderBy(x => x.GetType().Name).ThenBy(x => x.name))
+        foreach (var asset in abValues)
         {
-            ShowAsset(asset, showSubAsset);
+            ShowAsset(asset, true);
         }
         string[] dependAbs = AssetDatabase.GetAssetBundleDependencies(abName, false);
         foreach (string depend in dependAbs)
@@ -243,28 +255,40 @@ public class ABDoctor : EditorWindow
         EditorGUI.indentLevel--;
     }
 
-    private void ShowAsset(Object asset, bool showSubAsset = true)
+    private void ShowAsset(Object asset, bool showInList = false)
     {
         Color oldColor = GUI.color;
         string path = AssetDatabase.GetAssetPath(asset);
-        
+        bool isSubAsset = !AssetDatabase.IsMainAsset(asset);
         if (string.IsNullOrEmpty(path))
         {
+            isSubAsset = false;
             GUI.color = Color.blue;
         }
         else if (IsBuildIn(path))
         {
+            isSubAsset = false;
             GUI.color = Color.yellow;
         }
-        else if (!AssetDatabase.IsMainAsset(asset))
+        else if (isSubAsset)
         {
-            if (showSubAsset)
-                GUI.color = new Color(0.7f,0.7f,0.7f,1f);
-            else
-                return;
+            GUI.color = new Color(0.7f,0.7f,0.7f,1f);
         }
 
-        EditorGUILayout.ObjectField(asset, typeof(Object), true);
+        if (showInList)
+        {
+            if (showSubAsset || !isSubAsset)
+            {
+                if (isSubAsset) EditorGUI.indentLevel++;
+                EditorGUILayout.ObjectField(asset, typeof(Object), true);
+                if (isSubAsset) EditorGUI.indentLevel--;
+            }
+        }
+        else
+        {
+            EditorGUILayout.ObjectField(asset, typeof(Object), true);
+        }
+
         GUI.color = oldColor;
     }
 
