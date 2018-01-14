@@ -49,7 +49,14 @@ public class ABDoctor : EditorWindow
             List<Object> objects = new List<Object>();
             foreach (string assetPath in assetPaths)
             {
-                objects.AddRange(AssetDatabase.LoadAllAssetsAtPath(assetPath));
+                if (assetPath.EndsWith(".unity"))
+                {
+                    objects.Add(AssetDatabase.LoadMainAssetAtPath(assetPath));
+                }
+                else
+                {
+                    objects.AddRange(AssetDatabase.LoadAllAssetsAtPath(assetPath));
+                }
             }
             HashSet<Object> abAssets = new HashSet<Object>(EditorUtility.CollectDependencies(objects.ToArray()));
             abAssetDict.Add(abName, abAssets);

@@ -243,7 +243,7 @@ public class ABPackRuleConfig : ScriptableObject
 
         public bool MatchType(string type)
         {
-            if (type == "MonoScript")
+            if (type == "MonoScript" || type == "DefaultAsset")
                 return false;
 
             return string.IsNullOrEmpty(typeFilter) ? true : Array.IndexOf(typeFilter.Split(','), type) >= 0;
