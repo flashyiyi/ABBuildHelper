@@ -6,7 +6,7 @@ using UnityEditor;
 
 public class ABFindUnpack : EditorWindow
 {
-    [MenuItem("Window/AB BuildHelper/AB FindUnpack",false,2)]
+    [MenuItem("Window/AB BuildHelper/AB FindUnpack",false,3)]
     static void Init()
     {
         ABFindUnpack w = (ABFindUnpack)EditorWindow.GetWindow(typeof(ABFindUnpack), false, "AB FindUnpack", true);
