@@ -35,19 +35,19 @@ namespace ABBuildHelper
 
         static bool showRepeat
         {
-            get { return EditorPrefs.GetBool("ABDoctor.showRepeat"); }
+            get { return EditorPrefs.HasKey("ABDoctor.showRepeat") ? EditorPrefs.GetBool("ABDoctor.showRepeat") : true; }
             set { EditorPrefs.SetBool("ABDoctor.showRepeat", value); }
         }
 
         static bool showBuildIn
         {
-            get { return EditorPrefs.GetBool("ABDoctor.showBuildIn"); }
+            get { return EditorPrefs.HasKey("ABDoctor.showBuildIn") ? EditorPrefs.GetBool("ABDoctor.showBuildIn") : true; }
             set { EditorPrefs.SetBool("ABDoctor.showBuildIn", value); }
         }
 
         static bool showABList
         {
-            get { return EditorPrefs.GetBool("ABDoctor.showABList"); }
+            get { return EditorPrefs.HasKey("ABDoctor.showABList") ? EditorPrefs.GetBool("ABDoctor.showABList") : true; }
             set { EditorPrefs.SetBool("ABDoctor.showABList", value); }
         }
 
