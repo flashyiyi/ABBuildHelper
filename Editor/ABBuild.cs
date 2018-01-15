@@ -98,6 +98,7 @@ namespace ABBuildHelper
                 if (!Directory.Exists(path))
                     Directory.CreateDirectory(path);
                 BuildPipeline.BuildAssetBundles(path, options, buildTarget);
+                AssetDatabase.Refresh();
             }
         }
 
