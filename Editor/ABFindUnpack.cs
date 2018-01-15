@@ -3,99 +3,103 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
-
-public class ABFindUnpack : EditorWindow
+namespace ABBuildHelper
 {
-    [MenuItem("Window/AB BuildHelper/AB FindUnpack",false,3)]
-    static void Init()
+    public class ABFindUnpack : EditorWindow
     {
-        ABFindUnpack w = (ABFindUnpack)EditorWindow.GetWindow(typeof(ABFindUnpack), false, "AB FindUnpack", true);
-        w.Show();
-    }
-
-    List<Object> assets;
-    Vector2 scrollPosition;
-    string folder;
-
-    public void CollectData()
-    {
-        List<string> assetPaths = new List<string>();
-        foreach (string abName in AssetDatabase.GetAllAssetBundleNames())
+        [MenuItem("Window/AB BuildHelper/AB FindUnpack", false, 3)]
+        static void Init()
         {
-            assetPaths.AddRange(AssetDatabase.GetAssetPathsFromAssetBundle(abName));
+            ABFindUnpack w = EditorWindow.GetWindow<ABFindUnpack>(false, "AB FindUnpack", true);
+            w.Show();
         }
-        assets = new List<Object>();
-        string filter = "Assets/" + folder + (folder == "" ? "" : "/");
-        foreach (string path in AssetDatabase.GetAllAssetPaths().Except(AssetDatabase.GetDependencies(assetPaths.ToArray())).OrderBy(x => x))
+
+        List<Object> assets;
+        Vector2 scrollPosition;
+        string folder;
+
+        public void CollectData()
         {
-            if (path.StartsWith(filter))
+            List<string> assetPaths = new List<string>();
+            foreach (string abName in AssetDatabase.GetAllAssetBundleNames())
             {
-                Object obj = AssetDatabase.LoadMainAssetAtPath(path);
-                if (!(obj is DefaultAsset || obj is MonoScript))
-                    assets.Add(obj);
+                assetPaths.AddRange(AssetDatabase.GetAssetPathsFromAssetBundle(abName));
+            }
+            assets = new List<Object>();
+            string filter = "Assets/" + folder + (folder == "" ? "" : "/");
+            foreach (string path in AssetDatabase.GetAllAssetPaths().Except(AssetDatabase.GetDependencies(assetPaths.ToArray())).OrderBy(x => x))
+            {
+                if (path.StartsWith(filter))
+                {
+                    Object obj = AssetDatabase.LoadMainAssetAtPath(path);
+                    if (!(obj is DefaultAsset || obj is MonoScript))
+                        assets.Add(obj);
+                }
             }
         }
-    }
 
-    private void OnEnable()
-    {
-        folder = EditorPrefs.GetString("ABFindUnpack.folder");
-        if (string.IsNullOrEmpty(folder))
+        private void OnEnable()
         {
-            folder = "";
-        }
-    }
-
-    private void OnGUI()
-    {
-        EditorGUILayout.BeginHorizontal(GUI.skin.box);
-        folder = EditorGUILayout.TextField(folder);
-        if (Event.current.type == EventType.DragUpdated && GUILayoutUtility.GetLastRect().Contains(Event.current.mousePosition))
-        {
-            if (DragAndDrop.objectReferences[0] is DefaultAsset)
+            folder = EditorPrefs.GetString("ABFindUnpack.folder");
+            if (string.IsNullOrEmpty(folder))
             {
-                DragAndDrop.visualMode = DragAndDropVisualMode.Move;
-                DragAndDrop.AcceptDrag();
+                folder = "";
+            }
+        }
+
+        private void OnGUI()
+        {
+            EditorGUILayout.BeginHorizontal(GUI.skin.box);
+            folder = EditorGUILayout.TextField(folder);
+            if (Event.current.type == EventType.DragUpdated && GUILayoutUtility.GetLastRect().Contains(Event.current.mousePosition))
+            {
+                if (DragAndDrop.objectReferences[0] is DefaultAsset)
+                {
+                    DragAndDrop.visualMode = DragAndDropVisualMode.Move;
+                    DragAndDrop.AcceptDrag();
+                    Event.current.Use();
+                }
+            }
+            else if (Event.current.type == EventType.DragPerform && GUILayoutUtility.GetLastRect().Contains(Event.current.mousePosition))
+            {
+                SetFolder(DragAndDrop.paths[0]);
                 Event.current.Use();
             }
-        }
-        else if (Event.current.type == EventType.DragPerform && GUILayoutUtility.GetLastRect().Contains(Event.current.mousePosition))
-        {
-            SetFolder(DragAndDrop.paths[0]);
-            Event.current.Use();
-        }
-        if (GUILayout.Button("Select Root Path"))
-        {
-            string result = EditorUtility.OpenFolderPanel("", "选择目录", "");
-            if (result != null)
+            if (GUILayout.Button("Select Root Path"))
             {
-                SetFolder(result);
-                GUI.FocusControl(null);
+                string result = EditorUtility.OpenFolderPanel("", "选择目录", "");
+                if (result != null)
+                {
+                    SetFolder(result);
+                    GUI.FocusControl(null);
+                }
+            }
+            if (GUILayout.Button("Find"))
+            {
+                CollectData();
+            }
+            EditorGUILayout.EndHorizontal();
+            if (assets != null)
+            {
+                scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
+                foreach (Object asset in assets)
+                {
+                    EditorGUILayout.ObjectField(asset, typeof(Object), true);
+                }
+                EditorGUILayout.EndScrollView();
             }
         }
-        if (GUILayout.Button("Find"))
+
+        private void SetFolder(string result)
         {
-            CollectData();
-        }
-        EditorGUILayout.EndHorizontal();
-        if (assets != null)
-        {
-            scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
-            foreach (Object asset in assets)
-            {
-                EditorGUILayout.ObjectField(asset, typeof(Object), true);
-            }
-            EditorGUILayout.EndScrollView();
+            if (result.StartsWith(Application.dataPath))
+                folder = result == Application.dataPath ? "" : result.Substring(Application.dataPath.Length + 1);
+            else if (result.StartsWith("Assets"))
+                folder = result == "Assets" ? "" : result.Substring("Assets/".Length);
+
+            EditorPrefs.SetString("ABFindUnpack.folder", folder);
         }
     }
 
-    private void SetFolder(string result)
-    {
-        if (result.StartsWith(Application.dataPath))
-            folder = result == Application.dataPath ? "" : result.Substring(Application.dataPath.Length + 1);
-        else if (result.StartsWith("Assets"))
-            folder = result == "Assets" ? "" : result.Substring("Assets/".Length);
-
-        EditorPrefs.SetString("ABFindUnpack.folder", folder);
-    }
 }
+
