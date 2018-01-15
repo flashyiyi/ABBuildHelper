@@ -68,9 +68,9 @@ public class ABViewer : EditorWindow
                 AssetBundle ab = AssetBundle.LoadFromFile(path);
                 if (ab == null)
                     break;
-
+                
                 Object[] assets = ab.LoadAllAssets().OrderBy(x => x.GetType().Name).ThenBy(x => x.name).ToArray();
-                Object[] depends = EditorUtility.CollectDependencies(assets).Except(assets).OrderBy(x => x.GetType().Name).ThenBy(x => x.name).ToArray();
+                Object[] depends = EditorUtility.CollectDependencies(assets).Where(x => !(x is MonoScript)).Except(assets).OrderBy(x => x.GetType().Name).ThenBy(x => x.name).ToArray();
                 enties.Add(new Entiy()
                 {
                     ab = ab,

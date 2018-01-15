@@ -31,6 +31,25 @@ public class ABDoctor : EditorWindow
         public List<Object> objects;
         public bool opened;
     }
+
+    static bool showRepeat
+    {
+        get { return EditorPrefs.GetBool("ABDoctor.showRepeat"); }
+        set { EditorPrefs.SetBool("ABDoctor.showRepeat", value); }
+    }
+
+    static bool showBuildIn
+    {
+        get { return EditorPrefs.GetBool("ABDoctor.showBuildIn"); }
+        set { EditorPrefs.SetBool("ABDoctor.showBuildIn", value); }
+    }
+
+    static bool showABList
+    {
+        get { return EditorPrefs.GetBool("ABDoctor.showABList"); }
+        set { EditorPrefs.SetBool("ABDoctor.showABList", value); }
+    }
+
     Dictionary<string, List<Object>> abAssets;
     Dictionary<Object, List<RepeatData>> assetDenpendGroups;
     Dictionary<Object, List<RepeatData>> repeatAssets;
@@ -58,7 +77,7 @@ public class ABDoctor : EditorWindow
                     objects.AddRange(AssetDatabase.LoadAllAssetsAtPath(assetPath));
                 }
             }
-            HashSet<Object> abAssets = new HashSet<Object>(EditorUtility.CollectDependencies(objects.ToArray()));
+            HashSet<Object> abAssets = new HashSet<Object>(EditorUtility.CollectDependencies(objects.ToArray()).Where(x => !(x is MonoScript)));
             abAssetDict.Add(abName, abAssets);
         }
         //移除ab间依赖
@@ -89,9 +108,6 @@ public class ABDoctor : EditorWindow
         {
             foreach (Object obj in pair.Value)
             {
-                if (obj is MonoScript)
-                    continue;
-
                 RepeatData repeatData = new RepeatData();
                 repeatData.abName = pair.Key;
                 if (!assetDenpendGroups.ContainsKey(obj))
@@ -115,6 +131,10 @@ public class ABDoctor : EditorWindow
             }
             if (IsBuildIn(AssetDatabase.GetAssetPath(pair.Key)))
             {
+                //foreach (var repeatData in pair.Value)
+                //{
+                //    CollectRepeatDependencies(repeatData, pair.Key);
+                //}
                 buildInAssets.Add(pair.Key, pair.Value);
             }
         }
@@ -172,53 +192,62 @@ public class ABDoctor : EditorWindow
         if (repeatAssets.Count > 0)
         {
             EditorGUILayout.BeginHorizontal(GUI.skin.button);
-            EditorGUILayout.LabelField("重复打包的资源：");
+            showRepeat = EditorGUILayout.ToggleLeft("重复打包的资源：", showRepeat);
             EditorGUILayout.EndHorizontal();
-            EditorGUI.indentLevel++;
-            foreach (var pair in repeatAssets)
+            if (showRepeat)
             {
-                ShowAsset(pair.Key);
-                ShowDependencies(pair.Value, pair.Key);
+                EditorGUI.indentLevel++;
+                foreach (var pair in repeatAssets)
+                {
+                    ShowAsset(pair.Key);
+                    ShowDependencies(pair.Value, pair.Key);
+                }
+                EditorGUI.indentLevel--;
             }
-            EditorGUI.indentLevel--;
         }
 
         if (buildInAssets.Count > 0)
         {
             EditorGUILayout.BeginHorizontal(GUI.skin.button);
-            EditorGUILayout.LabelField("不能依赖打包的内置资源：");
+            showBuildIn = EditorGUILayout.ToggleLeft("不能依赖打包的内置资源：",showBuildIn);
             if (GUILayout.Button("替换为用户资源"))
             {
                 FixBuildInAssets();
             }
             EditorGUILayout.EndHorizontal();
-            EditorGUI.indentLevel++;
-            foreach (var pair in buildInAssets)
+            if (showBuildIn)
             {
-                ShowAsset(pair.Key);
-                ShowDependencies(pair.Value, pair.Key);
+                EditorGUI.indentLevel++;
+                foreach (var pair in buildInAssets)
+                {
+                    ShowAsset(pair.Key);
+                    ShowDependencies(pair.Value, pair.Key);
+                }
+                EditorGUI.indentLevel--;
             }
-            EditorGUI.indentLevel--;
         }
 
         EditorGUILayout.BeginHorizontal(GUI.skin.button);
-        EditorGUILayout.LabelField("AssetBundles内容：");
+        showABList = EditorGUILayout.ToggleLeft("AssetBundles内容：",showABList);
         showSubAsset = GUILayout.Toggle(showSubAsset, "Show Sub Asset");
         EditorGUILayout.EndHorizontal();
-        EditorGUI.indentLevel++;
-        foreach (var pair in abAssets)
+        if (showABList)
         {
-            if (!toggleGroupData.ContainsKey(pair.Key))
-                toggleGroupData.Add(pair.Key, false);
-
-            toggleGroupData[pair.Key] = EditorGUILayout.Foldout(toggleGroupData[pair.Key], pair.Key);
-            CheckDragToAssetBoundles(pair.Key);
-            if (toggleGroupData[pair.Key])
+            EditorGUI.indentLevel++;
+            foreach (var pair in abAssets)
             {
-                ShowAssets(pair.Key);
+                if (!toggleGroupData.ContainsKey(pair.Key))
+                    toggleGroupData.Add(pair.Key, false);
+
+                toggleGroupData[pair.Key] = EditorGUILayout.Foldout(toggleGroupData[pair.Key], pair.Key);
+                CheckDragToAssetBoundles(pair.Key);
+                if (toggleGroupData[pair.Key])
+                {
+                    ShowAssets(pair.Key);
+                }
             }
+            EditorGUI.indentLevel--;
         }
-        EditorGUI.indentLevel--;
         GUILayout.EndScrollView();
     }
 
