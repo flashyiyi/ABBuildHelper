@@ -205,6 +205,20 @@ namespace ABBuildHelper
                     if (!string.IsNullOrEmpty(url))
                     {
                         PrefabUtility.CreatePrefab(url, asset as GameObject);
+
+                        GameObject go = AssetDatabase.LoadAssetAtPath<GameObject>(url);
+                        foreach (SkinnedMeshRenderer skinMesh in go.GetComponentsInChildren<SkinnedMeshRenderer>())
+                        {
+                            if (skinMesh.sharedMesh != null)
+                            {
+                                string name = skinMesh.sharedMesh.name;
+                                skinMesh.sharedMesh = Object.Instantiate(skinMesh.sharedMesh);
+                                skinMesh.sharedMesh.name = name;
+                                AssetDatabase.AddObjectToAsset(skinMesh.sharedMesh, url);
+                            }
+                        }
+                        AssetDatabase.SaveAssets();
+                        AssetDatabase.Refresh();
                     }
                 }
                 else
