@@ -27,18 +27,25 @@ namespace ABBuildHelper
             return false;
         }
 
-        public class Entiy
+        public class ABEntiy
         {
             public AssetBundle ab;
             public string[] abDepends;
-            public Object[] assets;
+            public AssetEntiy[] assets;
             public Object[] depends;
         }
 
-        public List<Entiy> enties;
+        public class AssetEntiy
+        {
+            public Object asset;
+            public Object[] depends;
+        }
+
+        public List<ABEntiy> enties;
 
         Vector2 scrollPosition;
-        bool showDependencies;
+        static bool showDependencies = false;
+        HashSet<Object> openedAsset;
 
         private void OnEnable()
         {
@@ -59,8 +66,9 @@ namespace ABBuildHelper
         public void LoadAssetBoundles()
         {
             UnloadAssetBoundles();
+            openedAsset = new HashSet<Object>();
 
-            enties = new List<Entiy>();
+            enties = new List<ABEntiy>();
             foreach (Object target in Selection.objects)
             {
                 if (target is DefaultAsset)
@@ -70,14 +78,21 @@ namespace ABBuildHelper
                     if (ab == null)
                         break;
 
-                    Object[] assets = ab.LoadAllAssets().OrderBy(x => x.GetType().Name).ThenBy(x => x.name).ToArray();
-                    Object[] depends = EditorUtility.CollectDependencies(assets).Where(x => !(x is MonoScript)).Except(assets).OrderBy(x => x.GetType().Name).ThenBy(x => x.name).ToArray();
-                    enties.Add(new Entiy()
+                    Object[] assets = ab.LoadAllAssets().Where(x => !(x is MonoScript) && x != null).OrderBy(x => x.GetType().Name).ThenBy(x => x.name).ToArray();
+                    int count = assets.Length;
+                    AssetEntiy[] assetEntiys = new AssetEntiy[count];
+                    for (int i = 0;i < count;i++)
+                    {
+                        Object asset = assets[i];
+                        assetEntiys[i] = new AssetEntiy() { asset = asset, depends = EditorUtility.CollectDependencies(new Object[] { asset }).Where(x => !(x is MonoScript) && x != null).Except(new Object[] { asset }).OrderBy(x => x.GetType().Name).ThenBy(x => x.name).ToArray() };
+                    }
+
+                    enties.Add(new ABEntiy()
                     {
                         ab = ab,
                         abDepends = AssetDatabase.GetAssetBundleDependencies(ab.name, false),
-                        assets = assets,
-                        depends = depends
+                        assets = assetEntiys,
+                        depends = assetEntiys.SelectMany(x => x.depends).Distinct().OrderBy(x => x.GetType().Name).ThenBy(x => x.name).ToArray()
                     });
                 }
             }
@@ -90,7 +105,9 @@ namespace ABBuildHelper
             if (enties == null)
                 return;
 
-            foreach (Entiy entiy in enties)
+            openedAsset = null;
+
+            foreach (ABEntiy entiy in enties)
             {
                 if (entiy.ab != null)
                     entiy.ab.Unload(false);
@@ -101,7 +118,7 @@ namespace ABBuildHelper
         private void OnGUI()
         {
             EditorGUILayout.BeginHorizontal();
-            showDependencies = EditorGUILayout.ToggleLeft("Show Relevance", showDependencies);
+            showDependencies = EditorGUILayout.ToggleLeft("Show Dependencies", showDependencies);
             if (GUILayout.Button("Unload All AB"))
             {
                 AssetBundle.UnloadAllAssetBundles(false);
@@ -114,10 +131,10 @@ namespace ABBuildHelper
                 return;
             }
             scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
-            foreach (Entiy entiy in enties)
+            foreach (ABEntiy entiy in enties)
             {
                 EditorGUILayout.BeginHorizontal(GUI.skin.button);
-                EditorGUILayout.LabelField(entiy.ab.name);
+                EditorGUILayout.LabelField(string.IsNullOrEmpty(entiy.ab.name) ? "(No Name)" : entiy.ab.name);
                 if (entiy.abDepends != null && entiy.abDepends.Length > 0)
                 {
                     EditorGUILayout.LabelField("Dependency: " + string.Join(",", entiy.abDepends));
@@ -127,37 +144,29 @@ namespace ABBuildHelper
                 GUI.color = Color.white;
                 if (entiy.assets != null)
                 {
-                    foreach (Object asset in entiy.assets)
+                    foreach (AssetEntiy item in entiy.assets)
                     {
-                        //EditorGUILayout.Foldout(true,EditorGUIUtility.ObjectContent(asset, typeof(Object)));
-                        EditorGUILayout.ObjectField(asset, typeof(Object), false);
-                        DragLastUI(asset);
-                        if (showDependencies)
+                        DrawAsset(item.asset, item.depends.Length > 0);
+                        if (openedAsset.Contains(item.asset))
                         {
-                            Object[] dependencies = EditorUtility.CollectDependencies(new Object[] { asset }).OrderBy(x => x.GetType().Name).ThenBy(x => x.name).ToArray();
                             EditorGUI.indentLevel++;
-                            foreach (Object obj in dependencies)
+                            foreach (Object obj in item.depends)
                             {
-                                if (obj != asset)
+                                if (obj != item.asset)
                                 {
-                                    EditorGUILayout.ObjectField(obj, typeof(Object), true);
-                                    DragLastUI(obj);
+                                    DrawAsset(obj,false);
                                 }
                             }
                             EditorGUI.indentLevel--;
                         }
                     }
                 }
-                if (!showDependencies)
+                if (showDependencies)
                 {
                     GUI.color = new Color(0.7f, 0.7f, 0.7f, 1f);
-                    if (entiy.depends != null)
+                    foreach (Object asset in entiy.depends)
                     {
-                        foreach (Object asset in entiy.depends)
-                        {
-                            EditorGUILayout.ObjectField(asset, typeof(Object), false);
-                            DragLastUI(asset);
-                        }
+                        DrawAsset(asset,false);
                     }
                     GUI.color = Color.white;
                 }
@@ -167,12 +176,58 @@ namespace ABBuildHelper
             EditorGUILayout.EndScrollView();
         }
 
-        private void DragLastUI(Object data)
+        private void DrawAsset(Object asset, bool isFolder)
         {
-            if (Event.current.type == EventType.MouseDrag && GUILayoutUtility.GetLastRect().Contains(Event.current.mousePosition))
+            Rect r = EditorGUILayout.BeginHorizontal();
+            EditorGUIUtility.SetIconSize(new Vector2(12f, 12f));
+            if (isFolder)
+            {
+                EditorGUI.BeginChangeCheck();
+                bool flag = EditorGUILayout.Foldout(openedAsset.Contains(asset), EditorGUIUtility.ObjectContent(asset, asset.GetType()));
+                if (EditorGUI.EndChangeCheck())
+                {
+                    if (flag)
+                        openedAsset.Add(asset);
+                    else
+                        openedAsset.Remove(asset);
+                }
+            }
+            else
+            {
+                EditorGUILayout.LabelField(EditorGUIUtility.ObjectContent(asset, asset.GetType()));
+            }
+
+            if (GUILayout.Button("Export", GUILayout.Width(60)))
+            {
+                if (asset is GameObject)
+                {
+                    string url = EditorUtility.SaveFilePanelInProject("Export To", asset.name, "prefab", null);
+                    if (!string.IsNullOrEmpty(url))
+                    {
+                        PrefabUtility.CreatePrefab(url, asset as GameObject);
+                    }
+                }
+                else
+                {
+                    string url = EditorUtility.SaveFilePanelInProject("Export To", asset.name, "asset", null);
+                    if (!string.IsNullOrEmpty(url))
+                    {
+                        AssetDatabase.CreateAsset(Object.Instantiate(asset), url);
+                    }
+                }
+                
+            }
+            EditorGUILayout.EndHorizontal();
+            
+            if (Event.current.clickCount >= 1 && r.Contains(Event.current.mousePosition))
+            {
+                AssetDatabase.OpenAsset(asset);
+            }
+            else if (Event.current.type == EventType.MouseDrag && r.Contains(Event.current.mousePosition))
             {
                 DragAndDrop.PrepareStartDrag();
-                DragAndDrop.objectReferences = new Object[] { data };
+                DragAndDrop.visualMode = DragAndDropVisualMode.Link;
+                DragAndDrop.objectReferences = new Object[] { asset };
                 DragAndDrop.StartDrag("Move Asset");
                 Event.current.Use();
             }
