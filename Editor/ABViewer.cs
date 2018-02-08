@@ -45,6 +45,7 @@ namespace ABBuildHelper
 
         Vector2 scrollPosition;
         static bool showDependencies = false;
+        static bool exportMesh = false;
         HashSet<Object> openedAsset;
 
         private void OnEnable()
@@ -119,6 +120,7 @@ namespace ABBuildHelper
         {
             EditorGUILayout.BeginHorizontal();
             showDependencies = EditorGUILayout.ToggleLeft("Show Dependencies", showDependencies);
+            exportMesh = EditorGUILayout.ToggleLeft("Export Mesh", exportMesh);
             if (GUILayout.Button("Unload All AB"))
             {
                 AssetBundle.UnloadAllAssetBundles(false);
@@ -205,20 +207,22 @@ namespace ABBuildHelper
                     if (!string.IsNullOrEmpty(url))
                     {
                         PrefabUtility.CreatePrefab(url, asset as GameObject);
-
-                        GameObject go = AssetDatabase.LoadAssetAtPath<GameObject>(url);
-                        foreach (SkinnedMeshRenderer skinMesh in go.GetComponentsInChildren<SkinnedMeshRenderer>())
+                        if (exportMesh)
                         {
-                            if (skinMesh.sharedMesh != null)
+                            GameObject go = AssetDatabase.LoadAssetAtPath<GameObject>(url);
+                            foreach (SkinnedMeshRenderer skinMesh in go.GetComponentsInChildren<SkinnedMeshRenderer>())
                             {
-                                string name = skinMesh.sharedMesh.name;
-                                skinMesh.sharedMesh = Object.Instantiate(skinMesh.sharedMesh);
-                                skinMesh.sharedMesh.name = name;
-                                AssetDatabase.AddObjectToAsset(skinMesh.sharedMesh, url);
+                                if (skinMesh.sharedMesh != null)
+                                {
+                                    string name = skinMesh.sharedMesh.name;
+                                    skinMesh.sharedMesh = Object.Instantiate(skinMesh.sharedMesh);
+                                    skinMesh.sharedMesh.name = name;
+                                    AssetDatabase.AddObjectToAsset(skinMesh.sharedMesh, url);
+                                }
                             }
+                            AssetDatabase.SaveAssets();
+                            AssetDatabase.Refresh();
                         }
-                        AssetDatabase.SaveAssets();
-                        AssetDatabase.Refresh();
                     }
                 }
                 else
